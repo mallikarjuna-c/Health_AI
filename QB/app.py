@@ -8,7 +8,7 @@ GET  /         -> simple HTML form
 import os
 import joblib
 import pandas as pd
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, field_validator
@@ -21,8 +21,14 @@ MODEL_PATH = os.path.join(HERE, "..", "QA", "model.joblib")
 SCREENING_THRESHOLD = 0.18
 HIGH_RISK_THRESHOLD = 0.50
 
-bundle = joblib.load(MODEL_PATH)
-model, scaler, columns = bundle["model"], bundle["scaler"], bundle["columns"]
+# if the model file is missing, keep the server running and explain the problem
+# on /predict, instead of crashing at startup
+try:
+    bundle = joblib.load(MODEL_PATH)
+    model, scaler, columns = bundle["model"], bundle["scaler"], bundle["columns"]
+except FileNotFoundError:
+    print(f"WARNING: model file not found at {MODEL_PATH}. Run QA/level1_train.py first.")
+    model = scaler = columns = None
 
 app = FastAPI(title="Heart Disease Risk API")
 db.init_db()
@@ -74,7 +80,7 @@ async def validation_error(request: Request, exc: RequestValidationError):
     messages = []
     for err in exc.errors():
         field = str(err["loc"][-1])
-        if err["type"] == "missing":
+        if err["type"] == "missing" or err.get("input", "") is None:
             messages.append(f"{field} is required.")
         elif field in RULES:
             messages.append(f"{field} must be {RULES[field]} (you sent {err.get('input')!r}).")
@@ -100,10 +106,18 @@ def risk_message(prob):
 
 @app.post("/predict")
 def predict(patient: Patient):
+    if model is None:
+        raise HTTPException(status_code=503,
+                            detail="The prediction model is not available right now. Please try again later.")
     prob = float(model.predict_proba(to_features(patient))[0, 1])
     level, message = risk_message(prob)
     db.save_prediction(patient.model_dump(), prob, level)
     return {"risk_probability": round(prob, 3), "risk_level": level, "message": message}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok" if model is not None else "model missing"}
 
 
 @app.get("/stats")
