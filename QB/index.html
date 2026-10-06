@@ -72,7 +72,7 @@
       const out = await res.json();
       if (!res.ok) {
         box.className = "error";
-        box.innerHTML = "<b>Please check your input.</b><br>" + JSON.stringify(out.detail);
+        box.innerHTML = "<b>Please check your input:</b><br>" + [].concat(out.detail).join("<br>");
         return;
       }
       box.className = out.risk_level.split(" ")[0].toLowerCase();
