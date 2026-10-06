@@ -1,6 +1,6 @@
 """
-Question A - Level 3: Reason
-Lower the decision threshold until recall reaches 0.9 and see what happens to precision.
+Level 3: Reason
+Lower the decision threshold until recall reaches 0.9 .
 Seed S = 3025.
 """
 
@@ -43,7 +43,6 @@ def main():
         print(f"{t:>9.2f} {tp:>4} {fn:>4} {fp:>4} {tn:>4} "
               f"{acc:>9.3f} {prec:>10.3f} {rec:>7.3f}")
 
-    # find the highest threshold (fewest false alarms) that still gives recall >= 0.9
     for t in np.arange(0.50, 0.00, -0.01):
         y_pred = (probs >= t).astype(int)
         tp, tn, fp, fn = confusion_matrix(y_test, y_pred)
@@ -57,7 +56,6 @@ def main():
     print(f"  TP={tp}  FN={fn}  FP={fp}  TN={tn}")
     print(f"  accuracy={acc:.3f}  precision={prec:.3f}  recall={rec:.3f}")
 
-    # a model that always says "no disease" - shows why accuracy alone misleads
     baseline_acc = np.mean(y_test == 0)
     print(f"\nAlways predicting 'no disease': accuracy={baseline_acc:.3f}, recall=0.000")
 
